@@ -4,127 +4,104 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Http\Requests;
+use Illuminate\Support\Facades\Artisan;
+use Symfony\Component\Process\Process;
+use Symfony\Component\Process\Exception\ProcessFailedException;
 
 class HomeController extends Controller {
 
-    public function __construct() {
-        $c = 0;  #capabilities, float between 0 y 1;        
-        $s = 0;   #salience
-        $x = 0; #position on an issue
+    public function index() {
 
-        $model = "";
-        $r = 0; #risk aversion
-    }
+        $out = '';
+        $out2 = '';
+        $fila = 0;
+        $a = [];
+        $rows = [];
+        $actors = [];
+        if (($gestor = fopen(storage_path("app/public/out.txt"), "r")) !== FALSE) {
+            while (($datos = fgetcsv($gestor, 1000, ",")) !== FALSE) {
+                $numero = count($datos);
+                $fila++;
+                if ($fila == 1) {
+                    $lab = ['id' => 'round',
+                        'label' => 'round',
+                        'type' => 'string'
+                    ];
+                    array_push($actors, $lab);
+                    for ($c = 0; $c < $numero; $c++) {
+                        $lab = ['id' => $datos[$c],
+                            'label' => $datos[$c],
+                            'type' => 'number'
+                        ];
+                        array_push($actors, $lab);
+                    }
+                    array_push($a, ['cols' => $actors]);
+                    continue;
+                }
 
-    public function printo($param) {
-        return 'x=' . s . '  c=' . c . ' s=' . s . ' r=' . r;
-    }
-
-    public function compare($x_k, $x_j, $risk = null) {
-
-        $risk = $position_range = $this->model . position_range;
-        $x_k_distance = (abs($this->x - $x_k) / position_range) * $risk;
-        $x_j_distance = (abs($this->x - $x_j) / position_range) * $risk;
-        return $this->c * $this->s * (x_k_distance - x_j_distance);
-    }
-
-    public function success($param) {
-
-        $position_range = $this->model . position_range;
-        $val = 0.5 - 0.5 * abs(actor . x - x_j) / position_range;
-        return 2 - 4 * pow($val, $this->r);
-    }
-
-    public function failure($param) {
-
-        $position_range = $this->model . position_range;
-        $val = 0.5 - 0.5 * abs(actor . x - x_j) / position_range;
-        return 2 - 4 * pow($val, $this->r);
-    }
-
-    public function statusQuo() {
-        return 2 - 4 * pow(0.5, $this->r);
-    }
-
-    public function challengue($actor_i, $actor_j) {
-
-        $prob_success = $this->model . probability($actor_i . x, $actor_j . x);
-        $u_success = $this->success($actor_i, $actor_j . x);
-        $u_failure = $this->failure(actor_i, actor_j . x);
-        $u_status_quo = $this->statusQuo();
-
-        $eu_resist = $actor_j . s * ($prob_success * $u_success + (1 - $prob_success) * $u_failure);
-        $eu_not_resist = (1 - $actor_j . s) * $u_success;
-        $eu_status_quo = $this->model . q * $u_status_quo;
-
-        return $eu_resist + $eu_not_resist - $eu_status_quo;
-    }
-
-    public function dangerLevel() {
-
-        foreach ($this->model->actors as $otheractor) {
-
-            if ($otheractor != $this) {
-                sum($this->challenge(other_actor, self);
+                $b = [];
+                array_push($b, ['v' => $fila - 1]);
+                for ($c = 0; $c < $numero; $c++) {
+                    array_push($b, ['v' => floatval($datos[$c])]);
+                }
+                array_push($rows, ['c' => $b]);
             }
+            array_push($a, ['rows' => $rows]);
+            fclose($gestor);
         }
-
-//        return sum($this->challenge(other_actor, self) for other_actor in self.model.actors if other_actor != self)
+//        dd($a);
+        return json_encode($a, JSON_PRETTY_PRINT);
     }
 
-    public function riskAceptance() {
+    public function run($actors) {
+        $n = $actors - 1;
+        $process = new Process('python3 ' . storage_path("app/public/bdm_scholz_model-jucjimenezmo.py") . ' ' . storage_path("app/public/input.csv") . ' ' . $n);
+        $process->run();
 
-        foreach ($this->model->actors as $actor) {
-            $actor->challenge(other_actor, self);
-        }
-//        $danger_levels = [actor.danger_level() for actor in self.model.actors]
-        $max_danger = max($danger_levels);
-        $min_danger = min($danger_levels);
-        return ((2 * $this->danger_level() - $max_danger - $min_danger) / ($max_danger - $min_danger));
-    }
-
-    public function riskAversion() {
-        $risk = $this->riskAcceptance();
-        return (1 - $risk / 3.0) / (1 + $risk / 3.0);
-    }
-
-    public function bestOffer($param) {
-
-        $offers = defaultdict(list);
-
-        foreach ($this->model->actors as $otheractor) {
-            if ($this->x == $otheractor->x) {
-                $offer = Offer . from_actors(self, other_actor);
-            }
+        // executes after the command finishes
+        if (!$process->isSuccessful()) {
+            throw new ProcessFailedException($process);
         }
 
+        $out = $process->getOutput();
+        $myfile = fopen(storage_path("app/public/out.txt"), "w") or die("Unable to open file!");
+        fwrite($myfile, $out);
+        fclose($myfile);
 
-
-        for other_actor in self.model.actors:
-        if self.x == other_actor.x:
-        continue
-
-        offer = Offer.from_actors(self, other_actor)
-        if offer:
-        offers[offer.offer_type].append(offer)
-
-        best_offer = None
-        best_offer_key = lambda offer: abs(self.x - offer.position)
+        //return $out;
+//        $status = ['status'=>'ok'];
+        return 'ok';
     }
 
-    public function compromiseBestOffer($offer) {
-        $top = (abs($offer->eu) * $offer->actor->x + abs($offer->other_eu) * $offer->other_actor->x);
-        return $top / (abs($offer->eu) + abs($offer->other_eu));
+    public function jsonToCsv(Request $request) {
 
-        if ($offers['confrontation']) {
-            $best_offer = min($offers['confrontation'], $key = $best_offer_key);
-        } elseif ($offers['compromise']) {
-            $best_offer = min($offers['compromise'],$key = $compromise_best_offer_key);
-        } elseif ($offers['capitulation']) {
-             $best_offer = min($offers['capitulation'], $key = $best_offer_key);
+        $json = $request->getContent();
+//        dd($json);
+        $decode = json_decode($json, true);
+
+        ///dd($decode);
+
+        $txt = "Actor,Capability,Position,Salience\n";
+
+        $actors = 0;
+        foreach ($decode as $actor) {
+            $name = $actor['name'];
+            $cap = $actor['capability'];
+            $inf = $actor['influence'];
+            $pos = $actor['position'];
+            $txt.= $name . ',' . $cap . ',' . $pos . ',' . $inf . "\n";
+            $actors++;
         }
 
-        return $best_offer;
+
+
+        $myfile = fopen(storage_path("app/public/input.csv"), "w") or die("Unable to open file!");
+        fwrite($myfile, $txt);
+        fclose($myfile);
+
+//        return $txt;
+
+        return $this->run($actors);
     }
 
 }

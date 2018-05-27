@@ -14,3 +14,11 @@
 Route::get('/', function () {
     return view('welcome');
 });
+
+Route::get('/graph', function () {
+    return view('graph');
+});
+
+Route::post('jsontocsv', 'HomeController@jsonToCsv');
+Route::get('index', 'HomeController@index');
+//Route::get('run', 'HomeController@run');
